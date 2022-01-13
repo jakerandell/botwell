@@ -27,9 +27,9 @@ EMBED_COLOR = 0xa700d6
 bot = commands.Bot(command_prefix='!')
 
 
-def make_yt_embed(query, message, page_num=1):
+def make_yt_embed(query, message, page_num=1, result_num=None):
     try:
-        video_results = yt.youtube_search(query, page_num)
+        video_results = yt.youtube_search(query, page_num, result_num)
     except Exception as e:
         video_results = None
         logger.error(
@@ -39,20 +39,37 @@ def make_yt_embed(query, message, page_num=1):
 
     puck = message.guild.get_member(PUCK_SNOWFLAKE)
 
+    logger.info(
+        'make_yt_embed: %s',
+        query
+    )
+
     try:
         if video_results:
+            if result_num:
+                description_string = None
+            else:
+                description_string = """Want more results? Respond `!more`
+                To show a specific result, respond `!result 2`
+                Please report any issues or feature suggestions to <@!%s>\n""" % PUCK_SNOWFLAKE
+
             em = discord.Embed(
-                description='Want more results? Respond !more\n Please report any issues or feature suggestions to <@!%s>\n' % PUCK_SNOWFLAKE,
+                description=description_string,
                 colour=EMBED_COLOR,
             )
             em.set_thumbnail(url=video_results[0]["snippet"]["thumbnails"]["default"]["url"])
-            em.set_footer(text="Thank you for using Botwell", icon_url=puck.avatar_url)
+            #em.set_footer(text="Thank you for using Botwell", icon_url=puck.avatar_url)
+            em.set_footer(text="Thank you for using Botwell")
 
             for index, result in enumerate(video_results):
+                if result_num:
+                    result_name = 'Result %d' % result_num
+                else:
+                    result_name = 'Result %d' % (int(index) + 1)
+
                 em.add_field(
-                    name='Result %d' % (int(index) + 1),
-                    value='[%s](https://youtube.com/watch?v=%s)' % (
-                    html.unescape(result["snippet"]["title"]), result["id"]["videoId"])
+                    name=result_name,
+                    value='[%s](https://youtube.com/watch?v=%s)' % (html.unescape(result["snippet"]["title"]), result["id"]["videoId"])
                 )
         else:
             em = discord.Embed(
@@ -67,7 +84,10 @@ def make_yt_embed(query, message, page_num=1):
             e
         )
 
-    return em
+    if result_num:
+        return em, 'Result %s https://youtube.com/watch?v=%s' % (result_num, video_results[0]["id"]["videoId"])
+    else:
+        return em
 
 
 def make_vtx_embed(ctx, protocol, channels, powers):
@@ -178,8 +198,29 @@ async def more(ctx, *args):
             if message.content.startswith('!more'):
                 counter += 1
 
-    query = previous_message.replace('!botwell', '')
+    query = previous_message.replace('!botwell', '').lstrip()
     await ctx.channel.send(embed=make_yt_embed(query=query, message=ctx, page_num=(counter + 1)))
+
+
+@bot.command()
+async def result(ctx, *args):
+    arg_string = ' '.join(args)
+    result_num = int(args[0])
+
+    logger.info(
+        '!result command: %s',
+        arg_string
+    )
+
+    async for message in ctx.channel.history(limit=100):
+        if message.author != bot.user:
+            if message.content.startswith('!botwell'):
+                previous_message = message.content
+                break
+
+    query = previous_message.replace('!botwell', '').lstrip()
+    embed, message = make_yt_embed(query=query, message=ctx, result_num=result_num)
+    await ctx.channel.send(content=message)
 
 
 @bot.command()
@@ -187,7 +228,7 @@ async def map(ctx, *args):
     arg_string = ' '.join(args)
 
     logger.info(
-        '!map message: %s',
+        '!map command: %s',
         arg_string
     )
 

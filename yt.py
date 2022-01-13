@@ -18,9 +18,8 @@ YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
 
-def youtube_search(query, page_num):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-                    developerKey=DEVELOPER_KEY)
+def youtube_search(query, page_num, result_num):
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=DEVELOPER_KEY)
 
     # Call the search.list method to retrieve results matching the specified
     # query term.
@@ -39,6 +38,9 @@ def youtube_search(query, page_num):
         if search_result["id"]["kind"] == "youtube#video":
             # videos.append("%s (%s)" % (search_result["snippet"]["title"], search_result["id"]["videoId"]))
             videos.append(search_result)
+
+    if result_num:
+        videos = [videos[result_num - 1]]
 
     return videos
 
